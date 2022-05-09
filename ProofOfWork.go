@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-const targetBits = 11
+const targetBits = 16
 
 type ProofOfWork struct {
 	block  *Block
@@ -32,7 +32,7 @@ func (pow *ProofOfWork) prepareData(nonce int) []byte {
 	data := bytes.Join(
 		[][]byte{
 			pow.block.PrevBlockHash,
-			pow.block.Data,
+			pow.block.HashTransactions(), // This line was changed
 			IntToHex(pow.block.Timestamp),
 			IntToHex(int64(targetBits)),
 			IntToHex(int64(nonce)),
@@ -48,7 +48,7 @@ func (pow *ProofOfWork) Run() (int, []byte) {
 	var hash [32]byte
 	nonce := 0
 
-	fmt.Printf("Mining the block containing \"%s\"\n", pow.block.Data)
+	fmt.Println("Mining the block")
 	for nonce < math.MaxInt64 {
 		data := pow.prepareData(nonce)
 		hash = sha256.Sum256(data)
@@ -62,7 +62,20 @@ func (pow *ProofOfWork) Run() (int, []byte) {
 			nonce++
 		}
 	}
+	fmt.Printf("Nonce: \"%d\"\n", nonce)
 	fmt.Print("\n\n")
 
 	return nonce, hash[:]
+}
+
+func (pow *ProofOfWork) Validate() bool {
+	var hashInt big.Int
+
+	data := pow.prepareData(pow.block.Nonce)
+	hash := sha256.Sum256(data)
+	hashInt.SetBytes(hash[:])
+
+	isValid := hashInt.Cmp(pow.target) == -1
+
+	return isValid
 }
